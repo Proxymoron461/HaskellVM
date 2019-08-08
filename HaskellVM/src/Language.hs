@@ -1,3 +1,5 @@
+--------------------------------------------------------------------------------
+-- | Defines the language in use.
 module Language where
 
 --------------------------------------------------------------------------------
@@ -35,4 +37,5 @@ data Stmt
 
 data Var = Address Int | Name String | Value Int
 
-type OutputMemory = [(Int, Int)]
+type Memory = [(Int, Int)]
+type Err = String
