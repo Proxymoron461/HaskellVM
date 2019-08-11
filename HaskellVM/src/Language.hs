@@ -7,35 +7,54 @@ module Language where
 
 --------------------------------------------------------------------------------
 
-data Program = ZipList (Int, Stmt)
+-- | Defining our own Zipper type for lists
+data Zipper a = Zipper [a] a [a]
 
-data Stmt
+-- | Define type classes for Zipper here!
+
+
+-- | Data type for language instructions (aka mnemonics)
+data Instruction
     = JumpTo { 
-        lineNo :: Int
+        lineNo :: LineNo
     }
     | JumpToWhenZero {
-        lineNo :: Int,
-        location :: Var
+        lineNo :: LineNo,
+        location :: Operand
     }
     | SetValueToVar {
-        destvar :: Var,
+        destvar :: Operand,
         val :: Int
     }
     | SetVarToVar {
-        destvar :: Var,
-        supplyvar :: Var
+        destvar :: Operand,
+        supplyvar :: Operand
     }
     | AddValueToVar {
-        destvar :: Var,
+        destvar :: Operand,
         val :: Int
     }
     | AddVarToVar {
-        destvar :: Var,
-        supplyvar :: Var
+        destvar :: Operand,
+        supplyvar :: Operand
     }
     | End
 
-data Var = Address Int | Name String | Value Int
 
-type Memory = [(Int, Int)]
+-- | Data type to represent operands to instructions
+data Operand = Address Address | Name String | Value Int
+
+-- | Address is type synonym for Int
+type Address = Int
+
+-- | Memory is type synonym for association list of address and value
+type Memory = [(Address, Int)]
+
+-- | Error is type synonym for a String, describing the problem
 type Err = String
+
+-- | LineNo is type synonym for Int
+type LineNo = Int
+
+-- | Program is type synonym for Zipper
+type Program = Zipper (LineNo, Instruction)
