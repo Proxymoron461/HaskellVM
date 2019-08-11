@@ -1,0 +1,50 @@
+--------------------------------------------------------------------------------
+
+-- | Proofs of type class instances for Zipper below.
+-- | data Zipper a = Zipper [a] a [a]
+
+--------------------------------------------------------------------------------
+
+-- | Proof of Functor instance for Zipper
+-- | Relies on proven Functor instances for lists, which are easy to find.
+
+
+instance Functor Zipper where
+    -- | fmap :: (a -> b) -> Zipper a -> Zipper b
+    fmap f (Zipper ls x rs) = Zipper (fmap f ls) (f x) (fmap f rs)
+
+
+1. fmap id = id
+
+fmap id (Zipper ls x rs)
+{ Apply fmap }
+= Zipper (fmap id ls) (id x) (fmap id rs)
+{ Apply functor law for lists }
+= Zipper ls (id x) rs
+{ Apply id }
+= Zipper ls x rs
+{ Un-apply id }
+= id (Zipper ls x rs)
+
+
+2. fmap (g . f) = fmap g . fmap f
+
+fmap (g . f) (Zipper ls x rs)
+{ Apply fmap }
+= Zipper (fmap (g . f) ls) ((g . f) x) (fmap (g . f) rs)
+{ Apply functor law for lists }
+= Zipper ((fmap g . fmap f) ls) ((g . f) x) ((fmap g . fmap f) rs)
+{ Apply (.) }
+= Zipper (fmap g (fmap f ls)) (g (f x)) (fmap g (fmap f rs))
+{ Un-apply fmap }
+= fmap g (Zipper (fmap f ls) (f x) (fmap f rs))
+{ Un-apply fmap }
+= fmap g (fmap f (Zipper ls x rs))
+{ Un-apply (.) }
+= (fmap g . fmap f) (Zipper ls x rs)
+
+--------------------------------------------------------------------------------
+
+-- | Proof of Applicative instance for Zipper
+
+1. 
