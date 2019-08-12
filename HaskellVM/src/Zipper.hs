@@ -24,11 +24,11 @@ instance Functor Zipper where
 instance Applicative Zipper where
     -- | pure :: a -> Zipper a
     pure x = let xs = repeat x in Zipper xs x xs
+    
     -- | Zipper (a -> b) -> Zipper a -> Zipper b
     (Zipper lfs f rfs) <*> (Zipper ls x rs) = 
         Zipper (zipWith h lfs ls) (f x) (zipWith h rfs rs)
-            where
-                h f x = f x
+            where h f x = f x
 
 -- | Define functions for Zipper here!
 
