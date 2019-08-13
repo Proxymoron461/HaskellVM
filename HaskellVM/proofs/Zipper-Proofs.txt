@@ -113,10 +113,30 @@ pure (.) <*> Zipper ul ux ur <*> Zipper vl vx vr <*> Zipper wl wx wr
 { Apply pure }
 = Zipper (repeat (.)) (.) (repeat (.)) <*> Zipper ul ux ur <*>
     Zipper vl vx vr <*> Zipper wl wx wr
-{ Apply <*> }
-= Zipper (zipWith ($) (repeat (.)) ul) (ux .) (zipWith ($) (repeat (.)) ur)
+{ Apply (<*>) }
+= Zipper (zipWith ($) (repeat (.)) ul) ((.) ux) (zipWith ($) (repeat (.)) ur)
     <*> Zipper vl vx vr <*> Zipper wl wx wr
+{ Apply (<*>) }
+= Zipper (zipWith ($) (zipWith ($) (repeat (.)) ul) vl) (((.) ux) vx)
+    (zipWith ($) (zipWith ($) (repeat (.)) ur) vr) <*> Zipper wl wx wr
+{ Apply (.) }
+= Zipper (zipWith ($) (zipWith ($) (repeat (.)) ul) vl) (ux . vx)
+    (zipWith ($) (zipWith ($) (repeat (.)) ur) vr) <*> Zipper wl wx wr
+{ Apply (<*>) }
+= Zipper (zipWith ($) (zipWith ($) (zipWith ($) (repeat (.)) ul) vl) wl)
+    ((ux . vx) wx) (zipWith ($) (zipWith ($) (zipWith ($) (repeat (.)) ur) vr) wr)
+    
 UNFINISHED
+
+= Zipper (zipWith ($) ul (zipWith ($) vl wl)) ((ux . vx) wx)
+    (zipWith ($) ur (zipWith ($) vr wr))
+{ Apply (.) }
+= Zipper (zipWith ($) ul (zipWith ($) vl wl)) (ux (vx wx))
+    (zipWith ($) ur (zipWith ($) vr wr))
+{ Un-apply (<*>)}
+= Zipper ul ux ur <*> (Zipper (zipWith ($) vl wl) (vx wx) (zipWith ($) vr wr))
+{ Un-apply (<*>) }
+= Zipper ul ux ur <*> (Zipper vl vx vr <*> Zipper wl wx wr)
 
 --------------------------------------------------------------------------------
 
@@ -192,3 +212,9 @@ zipWith ($) (l:ls) (repeat z)
 = zipWith ($) (($ z) : repeat ($ z)) (l:ls)
 { Un-apply repeat }
 = zipWith ($) (repeat ($ z)) (l:ls)
+
+
+4. (zipWith ($) (zipWith ($) (zipWith ($) (repeat (.)) ul) vl) wl)
+   = (zipWith ($) ul (zipWith ($) vl wl))
+
+UNFINISHED
