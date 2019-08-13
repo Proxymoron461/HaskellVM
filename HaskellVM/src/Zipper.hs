@@ -27,8 +27,7 @@ instance Applicative Zipper where
 
     -- | Zipper (a -> b) -> Zipper a -> Zipper b
     (Zipper lfs f rfs) <*> (Zipper ls x rs) = 
-        Zipper (zipWith h lfs ls) (f x) (zipWith h rfs rs)
-            where h = (\g y -> g y)
+        Zipper (zipWith ($) lfs ls) (f x) (zipWith ($) rfs rs)
 
 -- | Define functions for Zipper here!
 
