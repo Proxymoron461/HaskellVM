@@ -10,6 +10,7 @@ import System.Environment (getArgs)
 import System.IO.Error
 import Control.Exception (catch)
 import System.Directory (getCurrentDirectory)
+import Control.Monad (when)
 
 
 entry :: IO ()
@@ -20,35 +21,43 @@ entry = input
 -- and hand that to the parser.
 input :: IO ()
 input = do
-            (fileName:fs) <- getArgs
-                -- | Returns IO [String], use monads to bind the [String] to (file:fs)
-                -- so that the first command line argument is bound to fileName.
-            fileContents <- catchReadFile fileName
-                -- | Use first command line argument (the file name) to read the file
-                -- and bind it to code, where code :: String.
-                -- | Runs in the current directory, so the file available should
-                -- exist in the current directory. (What I mean is that if you
-                -- are in /Haskell/HaskellVM and you run stack run mine.txt, then
-                -- mine.txt needs to be in /Haskell/HaskellVM to get found).
+            args <- getArgs
+                -- | Get [String] of command line arguments.
+            fileContents <-
+                if (length args /= 0) then
+                    let fileName = head args in catchReadFile fileName
+                else requestFileNameFromUser
+                    -- | Request that the user enter the name of the file that
+                    -- they want manually, instead of providing it as a command
+                    -- line argument.
             either putStrLn putStrLn (parse fileContents >>= interpret >>= output)
                 -- | Whether output is memory or error, print to screen!
 
 
+
 -- | Given a FilePath (a String) and an IOError, returns an Err (a String) that
--- describes the error.            
+-- describes the error.
+-- | Uses predicates found in System.IO.Error in order to determine the precise
+-- nature of the exception. If it is not one of the usual suspects, then a 
+-- standard error message is returned.
 getErrorMessage :: FilePath -> IOError -> Err
 getErrorMessage s e | isDoesNotExistError e  = s ++ " does not exist!"
                     | isAlreadyInUseError e  = s ++ " is already in use!"
                     | isPermissionError e    = "You do not have the permissions to access " ++ s
-                    | otherwise              = "Operation generated an exception!"
+                    | otherwise              = "Attempting to read " ++ s ++ " generated an exception!"
 
 
--- | Function to handle the opening of a file, with any potential                    
+-- | Function to handle the opening of a file, with any potential IOErrors caught.                   
 catchReadFile :: FilePath -> IO FileContents
-catchReadFile file = catch (readFile file) (handler file)
+catchReadFile fileName = catch (readFile fileName) (handler fileName)
     where
-        handler s = \e -> do
-            putStrLn (getErrorMessage s e)
+        handler file = \err -> do
+            putStrLn (getErrorMessage file err)
+            requestFileNameFromUser
+
+
+requestFileNameFromUser :: IO FileContents
+requestFileNameFromUser = do
             cd <- getCurrentDirectory
                 -- | Get string representing the current directory
             putStrLn ("Current directory is " ++ cd ++ "\nPlease write the name of the file you want: ")

@@ -5,6 +5,7 @@ module Language where
 --------------------------------------------------------------------------------
 -- | Importing things goes here
 import Zipper
+
 --------------------------------------------------------------------------------
 
 -- | Data type for language instructions (aka mnemonics)
@@ -47,11 +48,12 @@ type Memory = [(Address, Int)]
 -- | Error is type synonym for a String, describing the problem
 type Err = String
 
--- | LineNo is type synonym for Int
+-- | LineNo is type synonym for Int, giving the line number
 type LineNo = Int
 
--- | FileContents is type synonym for String
+-- | FileContents is type synonym for String, giving the contents of a file
 type FileContents = String
 
--- | Program is type synonym for Zipper
+-- | Program is type synonym for Zipper, containing instructions indexed by line
+-- number
 type Program = Zipper (LineNo, Instruction)
