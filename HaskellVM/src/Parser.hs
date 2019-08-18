@@ -12,3 +12,5 @@ import Language
 -- | Program :: Zipper (LineNo, Instruction)
 parse :: String -> Either Err Program
 parse x = Left "parse not defined yet"
+    where
+        xs = lines x

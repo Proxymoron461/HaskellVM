@@ -50,5 +50,8 @@ type Err = String
 -- | LineNo is type synonym for Int
 type LineNo = Int
 
+-- | FileContents is type synonym for String
+type FileContents = String
+
 -- | Program is type synonym for Zipper
 type Program = Zipper (LineNo, Instruction)
