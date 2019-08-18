@@ -11,23 +11,26 @@ import System.IO.Error
 import Control.Exception (catch)
 import System.Directory (getCurrentDirectory)
 
+
 entry :: IO ()
 entry = input
+
 
 -- | Take in user's command line input for the file name, bind it to a variable,
 -- and hand that to the parser.
 input :: IO ()
 input = do
-            (file:fs) <- getArgs
+            (fileName:fs) <- getArgs
                 -- | Returns IO [String], use monads to bind the [String] to (file:fs)
-            code <- catchReadFile file
+                -- so that the first command line argument is bound to fileName.
+            fileContents <- catchReadFile fileName
                 -- | Use first command line argument (the file name) to read the file
                 -- and bind it to code, where code :: String.
                 -- | Runs in the current directory, so the file available should
                 -- exist in the current directory. (What I mean is that if you
                 -- are in /Haskell/HaskellVM and you run stack run mine.txt, then
                 -- mine.txt needs to be in /Haskell/HaskellVM to get found).
-            either putStrLn putStrLn (parse code >>= interpret >>= output)
+            either putStrLn putStrLn (parse fileContents >>= interpret >>= output)
                 -- | Whether output is memory or error, print to screen!
 
 
