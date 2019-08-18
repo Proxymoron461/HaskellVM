@@ -4,14 +4,8 @@ module Language where
 
 --------------------------------------------------------------------------------
 -- | Importing things goes here
-
+import Zipper
 --------------------------------------------------------------------------------
-
--- | Defining our own Zipper type for lists
-data Zipper a = Zipper [a] a [a]
-
--- | Define type classes for Zipper here!
-
 
 -- | Data type for language instructions (aka mnemonics)
 data Instruction

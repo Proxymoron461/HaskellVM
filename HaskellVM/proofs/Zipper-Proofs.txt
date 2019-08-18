@@ -1,0 +1,220 @@
+--------------------------------------------------------------------------------
+
+-- | Proofs of type class instances for Zipper below.
+-- | data Zipper a = Zipper [a] a [a]
+
+--------------------------------------------------------------------------------
+
+-- | Proof of Functor instance for Zipper
+-- | Relies on proven Functor instances for lists, which are easy to find.
+
+
+instance Functor Zipper where
+    -- | fmap :: (a -> b) -> Zipper a -> Zipper b
+    fmap f (Zipper ls x rs) = Zipper (fmap f ls) (f x) (fmap f rs)
+
+
+1. fmap id = id
+
+fmap id (Zipper ls x rs)
+{ Apply fmap }
+= Zipper (fmap id ls) (id x) (fmap id rs)
+{ Apply functor law for lists }
+= Zipper ls (id x) rs
+{ Apply id }
+= Zipper ls x rs
+{ Un-apply id }
+= id (Zipper ls x rs)
+
+
+2. fmap (g . f) = fmap g . fmap f
+
+fmap (g . f) (Zipper ls x rs)
+{ Apply fmap }
+= Zipper (fmap (g . f) ls) ((g . f) x) (fmap (g . f) rs)
+{ Apply functor law for lists }
+= Zipper ((fmap g . fmap f) ls) ((g . f) x) ((fmap g . fmap f) rs)
+{ Apply (.) }
+= Zipper (fmap g (fmap f ls)) (g (f x)) (fmap g (fmap f rs))
+{ Un-apply fmap }
+= fmap g (Zipper (fmap f ls) (f x) (fmap f rs))
+{ Un-apply fmap }
+= fmap g (fmap f (Zipper ls x rs))
+{ Un-apply (.) }
+= (fmap g . fmap f) (Zipper ls x rs)
+
+--------------------------------------------------------------------------------
+
+-- | Proof of Applicative instance for Zipper
+
+instance Applicative Zipper where
+    -- | pure :: a -> Zipper a
+    pure x = let xs = repeat x in Zipper xs x xs
+
+    -- | Zipper (a -> b) -> Zipper a -> Zipper b
+    (Zipper lfs f rfs) <*> (Zipper ls x rs) = 
+        Zipper (zipWith ($) lfs ls) (f x) (zipWith ($) rfs rs)
+
+zipWith :: (a -> b -> c) -> [a] -> [b] -> [c]
+zipWith _  []     _     = []
+zipWith _  _      []    = []
+zipWith f (x:xs) (y:ys) = f x y : zipWith f xs ys
+
+repeat :: a -> [a]
+repeat x = xs where xs = x : xs
+
+
+1. pure id <*> v = v
+
+pure id <*> Zipper ls x rs
+{ Apply pure }
+= Zipper (repeat id) id (repeat id) <*> Zipper ls x rs
+{ Apply (<*>) }
+= Zipper (zipWith ($) (repeat id) ls) (id x) (zipWith ($) (repeat id) rs)
+{ Apply zipWith lemma - see supplemental proof 1 }
+= Zipper ls (id x) rs
+{ Apply id }
+= Zipper ls x rs
+
+
+2. pure f <*> pure x = pure (f x)
+
+pure f <*> pure x
+{ Apply pure }
+= Zipper (repeat f) f (repeat f) <*> Zipper (repeat x) x (repeat x)
+{ Apply (<*>) }
+= Zipper (zipWith ($) (repeat f) (repeat x)) (f x) (zipWith ($) (repeat f) (repeat x))
+{ Apply second zipWith lemma - see supplemental proof 2 }
+= Zipper (repeat (f x)) (f x) (repeat (f x))
+{ Un-apply pure }
+= pure (f x)
+
+
+3. u <*> pure z = pure ($ z) <*> u
+
+Zipper l x r <*> pure z
+{ Apply pure }
+= Zipper l x r <*> Zipper (repeat z) z (repeat z)
+{ Apply (<*>) }
+= Zipper (zipWith ($) l (repeat z)) (x z) (zipWith ($) r (repeat z))
+{ Un-apply ($) }
+= Zipper (zipWith ($) l (repeat z)) (($ z) x) (zipWith ($) r (repeat z))
+{ Apply third zipWith theorem - see supplemental proof 3 }
+= Zipper (zipWith ($) (repeat ($ z)) l) (($ z) x) (zipWith ($) (repeat ($ z)) r)
+{ Un-apply <*> }
+= Zipper (repeat ($ z)) ($ z) (repeat ($ z)) <*> Zipper l x r
+{ Un-apply pure }
+= pure ($ z) <*> Zipper l x r
+
+
+4. pure (.) <*> u <*> v <*> w = u <*> (v <*> w)
+
+pure (.) <*> Zipper ul ux ur <*> Zipper vl vx vr <*> Zipper wl wx wr
+{ Apply pure }
+= Zipper (repeat (.)) (.) (repeat (.)) <*> Zipper ul ux ur <*>
+    Zipper vl vx vr <*> Zipper wl wx wr
+{ Apply (<*>) }
+= Zipper (zipWith ($) (repeat (.)) ul) ((.) ux) (zipWith ($) (repeat (.)) ur)
+    <*> Zipper vl vx vr <*> Zipper wl wx wr
+{ Apply (<*>) }
+= Zipper (zipWith ($) (zipWith ($) (repeat (.)) ul) vl) (((.) ux) vx)
+    (zipWith ($) (zipWith ($) (repeat (.)) ur) vr) <*> Zipper wl wx wr
+{ Apply (.) }
+= Zipper (zipWith ($) (zipWith ($) (repeat (.)) ul) vl) (ux . vx)
+    (zipWith ($) (zipWith ($) (repeat (.)) ur) vr) <*> Zipper wl wx wr
+{ Apply (<*>) }
+= Zipper (zipWith ($) (zipWith ($) (zipWith ($) (repeat (.)) ul) vl) wl)
+    ((ux . vx) wx) (zipWith ($) (zipWith ($) (zipWith ($) (repeat (.)) ur) vr) wr)
+    
+UNFINISHED
+
+= Zipper (zipWith ($) ul (zipWith ($) vl wl)) ((ux . vx) wx)
+    (zipWith ($) ur (zipWith ($) vr wr))
+{ Apply (.) }
+= Zipper (zipWith ($) ul (zipWith ($) vl wl)) (ux (vx wx))
+    (zipWith ($) ur (zipWith ($) vr wr))
+{ Un-apply (<*>)}
+= Zipper ul ux ur <*> (Zipper (zipWith ($) vl wl) (vx wx) (zipWith ($) vr wr))
+{ Un-apply (<*>) }
+= Zipper ul ux ur <*> (Zipper vl vx vr <*> Zipper wl wx wr)
+
+--------------------------------------------------------------------------------
+
+-- | Supplemental proofs
+
+1. zipWith ($) (repeat id) r = r
+
+-- | Prove with induction on r, where r :: [a]
+
+-- | Base case: r = []
+zipWith ($) (repeat id) []
+{ Apply zipWith }
+= []
+
+-- | Inductive hypothesis: zipWith ($) (repeat id) rs = rs
+-- | Inductive step: zipWith ($) (repeat id) (r:rs) = r:rs
+zipWith ($) (repeat id) (r:rs)
+{ Apply zipWith }
+= ($) id r : zipWith ($) (repeat id) rs
+{ Apply ($) }
+= (id r) : zipWith ($) (repeat id) rs
+{ Apply id }
+= r : zipWith ($) (repeat id) rs
+{ Inductive hypothesis }
+= r : rs
+
+
+2. zipWith ($) (repeat f) (repeat x) = repeat (f x)
+
+zipWith ($) (repeat f) (repeat x)
+{ Un-apply repeat }
+= zipWith ($) (f : repeat f) (x : repeat x)
+{ Apply zipWith }
+= ($) f x : zipWith ($) (repeat f) (repeat x)
+{ Apply ($) }
+= f x : zipWith ($) (repeat f) (repeat x)
+{ Apply previous logic, ad infinitum }
+= f x : f x : f x : f x : f x : f x : f x ...
+{ Un-apply repeat }
+= repeat (f x)
+
+
+3. zipWith ($) ls (repeat z) = zipWith ($) (repeat ($ z)) ls
+
+-- | Prove with induction on ls, where ls :: [a]
+
+-- | Base case: ls = []
+zipWith ($) [] (repeat z)
+{ Apply zipWith }
+= []
+{ Un-apply zipWith }
+= zipWith ($) (repeat ($ z)) []
+
+-- | Inductive hypothesis: zipWith ($) ls (repeat z) = 
+-- zipWith ($) (repeat ($ z)) ls
+-- | Inductive step: zipWith ($) (l:ls) (repeat z) = 
+-- zipWith ($) (repeat ($ z)) (l:ls)
+zipWith ($) (l:ls) (repeat z)
+{ Apply repeat }
+= zipWith ($) (l:ls) (z : repeat z)
+{ Apply zipWith }
+= (($) l z) : zipWith ($) ls (repeat z)
+{ Apply inductive hypothesis }
+= (($) l z) : zipWith ($) (repeat ($ z)) ls
+{ Apply ($) }
+= l z : zipWith ($) (repeat ($ z)) ls
+= l $ z : zipWith ($) (repeat ($ z)) ls
+{ Un-apply inner ($) }
+= ($ z) l : zipWith ($) (repeat ($ z)) ls
+{ Un-apply outer ($) }
+= ($) ($ z) l : zipWith ($) (repeat ($ z)) ls
+{ Un-apply zipWith }
+= zipWith ($) (($ z) : repeat ($ z)) (l:ls)
+{ Un-apply repeat }
+= zipWith ($) (repeat ($ z)) (l:ls)
+
+
+4. (zipWith ($) (zipWith ($) (zipWith ($) (repeat (.)) ul) vl) wl)
+   = (zipWith ($) ul (zipWith ($) vl wl))
+
+UNFINISHED
