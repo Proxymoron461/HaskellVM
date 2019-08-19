@@ -34,16 +34,13 @@ input = do args <- getArgs
                -- | Request that the user enter the name of the file that
                -- they want manually, instead of providing it as a command
                -- line argument.
-           either putStrLn putStrLn (parse fileContents >>= interpret >>= output)
+           either putStrLn putStrLn (parseFile fileContents >>= interpret >>= output)
                -- | Whether output is memory or error, print to screen!
                -- | TODO: May need editing later.
 
 
 -- | If the first predicate is true, then case1 is executed. If the second is
 -- true, then case2 is executed.
--- | They are in the order given so that lazy evaluation can be used to define
--- a helpful success case, with any let-bound expressions bound to both the
--- second predicate and the success case.
 -- | This function enables (if (A && B) then C else D) control flow statements
 -- where a let-bound expression, say x, can be bound to both B and C, preventing
 -- unnecessary repetition (such as calling head args twice). To successfully 
