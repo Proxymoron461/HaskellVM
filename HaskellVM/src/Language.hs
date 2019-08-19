@@ -5,6 +5,7 @@ module Language where
 --------------------------------------------------------------------------------
 -- | Importing things goes here
 import Zipper
+import qualified Data.ByteString as BS
 
 --------------------------------------------------------------------------------
 
@@ -53,7 +54,13 @@ type LineNo = Int
 
 -- | FileContents is type synonym for String, giving the contents of a file
 type FileContents = String
+-- type FileContents = BS.ByteString
 
 -- | Program is type synonym for Zipper, containing instructions indexed by line
 -- number
 type Program = Zipper (LineNo, Instruction)
+
+-- | Holds a string for the file type (like .txt, .java, and so on).
+-- | TODO: discuss with Dilan!
+fileExtension :: String
+fileExtension = ".as"

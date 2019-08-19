@@ -3,6 +3,7 @@
 module Parser where
 
 import Language
+import qualified Data.ByteString as BS
 
 --------------------------------------------------------------------------------
 
@@ -14,3 +15,7 @@ parse :: String -> Either Err Program
 parse x = Left "parse not defined yet"
     where
         xs = lines x
+
+-- | Efficient version of parse which will read the file in a strict manner.        
+parse' :: BS.ByteString -> Either Err Program
+parse' = undefined
