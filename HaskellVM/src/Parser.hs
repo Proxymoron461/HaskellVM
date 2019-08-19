@@ -7,6 +7,7 @@ import Zipper
 import Data.Either
 import Data.Functor
 import Control.Applicative
+import Control.Monad
 import qualified Data.ByteString as BS
 
 --------------------------------------------------------------------------------
@@ -34,23 +35,34 @@ instance Applicative Parser where
     --     Right (y, ys) -> case f ys of
     --         Left s -> Left s
     --         Right (z, zs) -> Right (z y, zs)
-    Parser f <*> Parser g = Parser $ \x ->
-        g x >>= (\(y,ys) -> first ($ y) <$> f ys)
+    -- | Below, (>>=) :: Either Err (a, String) ->
+    -- (a -> Either Err (b, String)) -> Either Err (b, String)
+    -- Parser f <*> Parser g = Parser $ \x ->
+    --     g x >>= \(y,ys) -> first ($ y) <$> f ys
+    Parser f <*> Parser g = Parser $ g >=> h
+        where h (y,ys) = first ($ y) <$> f ys
         
 
 -- | Alternative instance for Parser
 instance Alternative Parser where
     -- | empty :: f a
-    empty = undefined
+    empty = Parser $ const $ Left "Empty Computation"
 
     -- | (<|>) :: f a -> f a -> f a
-    (<|>) = undefined
+    -- Parser f <|> Parser g = Parser $ \x -> case f x of
+    --     Right (y,ys) -> Right (y,ys)
+    --     Left s -> g x
+    Parser f <|> Parser g = Parser $ \x -> either (const $ g x) Right (f x)
 
     -- | some :: f a -> f [a]
-    some = undefined
+    -- | Return Left Err if all computations fail - otherwise, return a list
+    -- of successful computations.
+    some (Parser f) = undefined
 
     -- | many :: f a -> f [a]
-    many = undefined
+    -- | Can return an empty list if all computations fail - otherwise, return
+    -- a list of successful computations.
+    many (Parser f) = undefined
 
 -- | Monad instance for Parser
 instance Monad Parser where
@@ -61,7 +73,14 @@ instance Monad Parser where
     -- Parser f >>= g = Parser $ \x -> case f x of
     --     Left s -> Left s
     --     Right (y,ys) -> parse ys (g y)
-    Parser f >>= g = Parser $ \x -> either Left (\(y,ys) -> parse ys (g y)) (f x)
+    -- | f :: String -> Either Err (a, String)
+    -- | g :: a -> Parser b
+    -- Parser f >>= g = Parser $ \x -> either Left (\(y,ys) -> parse ys (g y)) (f x)
+    -- Parser f >>= g = Parser $ \x -> f x >>= (\(y,ys) -> parse ys (g y))
+    -- | h :: (a, String) -> Either Err (b, String)
+    -- | (>=>) :: (a -> m b) -> (b -> m c) -> a -> m c
+    Parser f >>= g = Parser $ f >=> h
+        where h (y,ys) = parse ys (g y)
 
 parse :: String -> Parser a -> Either Err (a, String)
 parse x (Parser f) = f x
@@ -92,5 +111,7 @@ removeBlankLines = filter (/= "")
 numberLines :: [FileContents] -> [(Int, FileContents)]
 numberLines = zip [0..]
 
+-- | Function that takes the contents of a file as input, and formats it into a
+-- list of individual lines, each indexed by line number.
 formatFile :: FileContents -> [(Int, FileContents)]
 formatFile = numberLines . removeBlankLines . lines
