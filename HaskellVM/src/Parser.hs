@@ -57,8 +57,11 @@ instance Monad Parser where
     -- | return :: a -> m a
     return = pure
 
-    -- | (>>=) :: m a -> (a -> m b) - > m b
-    Parser x >>= f = undefined
+    -- | (>>=) :: m a -> (a -> m b) -> m b
+    -- Parser f >>= g = Parser $ \x -> case f x of
+    --     Left s -> Left s
+    --     Right (y,ys) -> parse ys (g y)
+    Parser f >>= g = Parser $ \x -> either Left (\(y,ys) -> parse ys (g y)) (f x)
 
 parse :: String -> Parser a -> Either Err (a, String)
 parse x (Parser f) = f x
