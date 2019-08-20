@@ -6,6 +6,7 @@ import Language
 import Zipper
 import Data.Either
 import Data.Functor
+import Data.Char
 import Control.Applicative
 import Control.Monad
 import qualified Data.ByteString as BS
@@ -60,18 +61,20 @@ instance Alternative Parser where
     -- | some ~ (String -> Either Err (a, String)) -> (String -> Either Err ([a], String))
     -- | f :: String -> Either Err (a, String)
     -- | s :: String
-    some (Parser f) = Parser $ sFoo f
-        where
+    some (Parser f) = Parser $ \s -> case f s of
+        Left e        -> Left e
+        Right (x, xs) -> first (x :) <$> mFoo f xs
+        --where
             -- foo s = case f s of
             --     Left e        -> Left e
             --     Right (x, xs) -> first (x :) <$> foo xs
             --
             -- foo s = f s >>= \(x,xs) -> first (x :) <$> foo xs
-            -- | Above solutions will make whole thing fail if one fails and all
-            -- others succeed. Not good enough.
-            sFoo f s = case f s of
-                Left e        -> Left e
-                Right (x, xs) -> first (x :) <$> mFoo f s
+                -- | Above solutions will make whole thing fail if one fails and all
+                -- others succeed. Not good enough.
+    --some (Parser f) = Parser f <|> many (Parser f)
+        -- | Above solution does not work - many (Parser f) has type Parser [a], 
+        -- not type Parser a. But I feel I am onto something.
 
     -- | many :: f a -> f [a]
     -- | Can return an empty list if all computations fail - otherwise, return
@@ -86,10 +89,12 @@ instance Alternative Parser where
     --         foo s = case f s of
     --             Left e        -> Right ([], s)
     --             Right (x, xs) -> first (x :) <$> foo xs
-    -- | Below solution uses helper function, mFoo. It is not let- or where-bound
-    -- because it is also helpful in defining some.
     many (Parser f) = Parser $ mFoo f
+        -- | Above solution uses helper function, mFoo. It is not let- or where-bound
+        -- because it is also helpful in defining some.
 
+-- | Helper function for many - not let- or where-bound because it is also used
+-- for some.
 mFoo f s = either (const $ Right ([], s)) (\(x,xs) -> first (x :) <$> mFoo f xs) (f s)
 
 -- | Monad instance for Parser
@@ -108,14 +113,37 @@ instance Monad Parser where
     -- | h :: (a, String) -> Either Err (b, String)
     -- | (>=>) :: (a -> m b) -> (b -> m c) -> a -> m c
     Parser f >>= g = Parser $ f >=> h
-        where h (y,ys) = parse ys (g y)
+        where h (y,ys) = parse (g y) ys
 
-parse :: String -> Parser a -> Either Err (a, String)
-parse x (Parser f) = f x
+parse :: Parser a -> String -> Either Err (a, String)
+parse (Parser f) = f
 
 -- | Applies a function to the first element of a tuple.
 first :: (a -> b) -> (a, c) -> (b, c)
 first f (x, y) = (f x, y)
+
+--------------------------------------------------------------------------------
+-- | Definitions of a few useful parsers
+
+-- | Parse a character based on a predicate
+parseIf :: (Char -> Bool) -> Parser Char
+parseIf p = Parser foo
+    where
+        foo ""                 = Left "Parse failed - empty string"
+        foo (x:xs) | p x       = Right (x,xs)
+                   | otherwise = Left $ "Parse failed with character: " ++ show x
+
+-- | Parse a character if it is a member of a given list
+oneOf :: [Char] -> Parser Char
+oneOf cs = parseIf (`elem` cs)
+
+-- | Parse whitespace
+whitespace :: Parser Char
+whitespace = parseIf isSpace
+
+-- | Parse and remove whitespace
+trim :: Parser String
+trim = undefined
 
 --------------------------------------------------------------------------------
 
