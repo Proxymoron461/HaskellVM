@@ -36,7 +36,7 @@ instance Applicative Parser where
     --         Left s -> Left s
     --         Right (z, zs) -> Right (z y, zs)
     -- | Below, (>>=) :: Either Err (a, String) ->
-    -- (a -> Either Err (b, String)) -> Either Err (b, String)
+    --       (a -> Either Err (b, String)) -> Either Err (b, String)
     -- Parser f <*> Parser g = Parser $ \x ->
     --     g x >>= \(y,ys) -> first ($ y) <$> f ys
     Parser f <*> Parser g = Parser $ g >=> h
@@ -46,7 +46,7 @@ instance Applicative Parser where
 -- | Alternative instance for Parser
 instance Alternative Parser where
     -- | empty :: f a
-    empty = Parser $ const $ Left "Empty Computation"
+    empty = Parser . const . Left $ "Empty Computation"
 
     -- | (<|>) :: f a -> f a -> f a
     -- Parser f <|> Parser g = Parser $ \x -> case f x of
@@ -57,12 +57,40 @@ instance Alternative Parser where
     -- | some :: f a -> f [a]
     -- | Return Left Err if all computations fail - otherwise, return a list
     -- of successful computations.
-    some (Parser f) = undefined
+    -- | some ~ (String -> Either Err (a, String)) -> (String -> Either Err ([a], String))
+    -- | f :: String -> Either Err (a, String)
+    -- | s :: String
+    some (Parser f) = Parser $ sFoo f
+        where
+            -- foo s = case f s of
+            --     Left e        -> Left e
+            --     Right (x, xs) -> first (x :) <$> foo xs
+            --
+            -- foo s = f s >>= \(x,xs) -> first (x :) <$> foo xs
+            -- | Above solutions will make whole thing fail if one fails and all
+            -- others succeed. Not good enough.
+            sFoo f s = case f s of
+                Left e        -> Left e
+                Right (x, xs) -> first (x :) <$> mFoo f s
 
     -- | many :: f a -> f [a]
     -- | Can return an empty list if all computations fail - otherwise, return
     -- a list of successful computations.
-    many (Parser f) = undefined
+    -- | many :: Parser a -> Parser [a]
+    -- | many ~ (String -> Either Err (a, String)) -> (String -> Either Err ([a], String))
+    -- | f :: String -> Either Err (a, String)
+    -- | foo :: String -> Either Err ([a], String)
+    -- | foo xs :: Either Err ([a], String)
+    -- many (Parser f) = Parser foo
+    --     where
+    --         foo s = case f s of
+    --             Left e        -> Right ([], s)
+    --             Right (x, xs) -> first (x :) <$> foo xs
+    -- | Below solution uses helper function, mFoo. It is not let- or where-bound
+    -- because it is also helpful in defining some.
+    many (Parser f) = Parser $ mFoo f
+
+mFoo f s = either (const $ Right ([], s)) (\(x,xs) -> first (x :) <$> mFoo f xs) (f s)
 
 -- | Monad instance for Parser
 instance Monad Parser where
