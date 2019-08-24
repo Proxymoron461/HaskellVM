@@ -6,7 +6,7 @@ import Language
 import Zipper
 import Data.Either
 import Data.Functor
-import Data.Char
+import Data.Char (isDigit, isSpace, isLetter)
 import Control.Applicative
 import Control.Monad
 import qualified Data.ByteString as BS
@@ -131,7 +131,7 @@ parseIf :: (Char -> Bool) -> Parser Char
 parseIf p = Parser foo
     where
         foo ""                 = Left "Parse failed - empty string"
-        foo (x:xs) | p x       = Right (x,xs)
+        foo (x:xs) | p x       = Right (x, xs)
                    | otherwise = Left $ "Parse failed with character: " ++ show x
 
 -- | Parse a character if it is a member of a given list
@@ -140,11 +140,19 @@ oneOf cs = parseIf (`elem` cs)
 
 -- | Parse a character if it is not whitespace
 ifChar :: Parser Char
-ifChar = parseIf (not . isSpace)
+ifChar = parseIf isLetter
 
 -- | Parse a character if it is a digit
 ifDigit :: Parser Char
 ifDigit = parseIf isDigit
+
+-- | Parse a character if it is a newline
+ifNewLine :: Parser Char
+ifNewLine = parseIf (=='\n')
+
+-- | Parse a character if it is NOT a newline
+ifNotNewLine :: Parser Char
+ifNotNewLine = parseIf (/='\n')
 
 -- | Fetch all whitespace characters from the start of a string
 whitespace :: Parser String
@@ -180,6 +188,22 @@ number = whitespace *> some ifDigit
 --number = between whitespace (some ifDigit) whitespace
     -- | This has trimming behaviour - not exactly what we want.
 
+-- | Fetch an entire line of characters, with all preceding whitespace trimmed.
+-- Will succeed with blank lines. Will remove all newlines between the fetched
+-- line and the next non-newline character.
+line :: Parser String
+line = whitespace *> many ifNotNewLine <* many ifNewLine
+
+--------------------------------------------------------------------------------
+-- | Helper functions for parseFile.
+
+-- | parseLine takes the whole formatted file, as well as the individual line,
+-- in order to parse each line.
+-- | The whole file is taken so that any JUMP/GOTO commands can be made to point
+-- to the correct line number.
+parseLine :: (LineNo, FileContents) -> [(LineNo, FileContents)] -> (LineNo, Instruction)
+parseLine = undefined
+
 --------------------------------------------------------------------------------
 
 -- | Program :: Zipper (LineNo, Instruction)
@@ -195,13 +219,16 @@ parseFile fileString = Left "parseFile not defined yet"
 parseFile' :: BS.ByteString -> Either Err Program
 parseFile' = undefined
 
+removePrecedingWhitespace :: [FileContents] -> [FileContents]
+removePrecedingWhitespace = map (dropWhile isSpace)
+
 removeBlankLines :: [FileContents] -> [FileContents]
 removeBlankLines = filter (/= "")
 
-numberLines :: [FileContents] -> [(Int, FileContents)]
-numberLines = zip [0..]
+numberLines :: [FileContents] -> [(LineNo, FileContents)]
+numberLines = zip [1..]
 
 -- | Function that takes the contents of a file as input, and formats it into a
 -- list of individual lines, each indexed by line number.
 formatFile :: FileContents -> [(Int, FileContents)]
-formatFile = numberLines . removeBlankLines . lines
+formatFile = numberLines . removeBlankLines . removePrecedingWhitespace . lines
