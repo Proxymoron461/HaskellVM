@@ -13,8 +13,8 @@ import qualified Data.ByteString as BS
 
 --------------------------------------------------------------------------------
 
--- | Definition of my own parser type
-data Parser a = Parser (String -> Either Err (a, String))
+-- | Definition of my own parser type, supporting basic error reporting.
+newtype Parser a = Parser (String -> Either Err (a, String))
 
 -- | Functor instance for Parser
 instance Functor Parser where
@@ -29,25 +29,28 @@ instance Applicative Parser where
     -- | (<*>) :: f (a -> b) -> f a -> f b
     -- | Need to apply g to x, and then apply f to (g x), but ONLY if both are
     -- successful.
-    -- | g :: String -> Either Err (a, String)
     -- | f :: String -> Either Err (a -> b, String)
-    -- Parser f <*> Parser g = Parser $ \x -> case g x of
+    -- | g :: String -> Either Err (a, String)
+    -- Parser f <*> Parser g = Parser $ \x -> case f x of
     --     Left s -> Left s
-    --     Right (y, ys) -> case f ys of
+    --     Right (y, ys) -> case g ys of
     --         Left s -> Left s
-    --         Right (z, zs) -> Right (z y, zs)
-    -- | Below, (>>=) :: Either Err (a, String) ->
-    --       (a -> Either Err (b, String)) -> Either Err (b, String)
-    -- Parser f <*> Parser g = Parser $ \x ->
-    --     g x >>= \(y,ys) -> first ($ y) <$> f ys
-    Parser f <*> Parser g = Parser $ g >=> h
-        where h (y,ys) = first ($ y) <$> f ys
+    --         Right (z, zs) -> Right (y z, zs)
+    -- | TODO: clean this up?? (>=>) ??
+    -- | (>=>) :: (a -> m b) -> (b -> m c) -> a -> m c
+    --Parser f <*> Parser g = Parser $ \x -> f x >>= \(y,ys) -> g ys >>=
+    --    \(z,zs) -> Right (y z,zs)
+    -- | In the below code, the do operates in the Either monad, not the Parser
+    -- monad.
+    Parser f <*> Parser g = Parser $ \x -> do (y,ys) <- f x
+                                              (z,zs) <- g ys
+                                              return (y z, zs)
         
 
 -- | Alternative instance for Parser
 instance Alternative Parser where
     -- | empty :: f a
-    empty = Parser . const . Left $ "Empty Computation"
+    empty = Parser $ const . Left $ "Empty Computation"
 
     -- | (<|>) :: f a -> f a -> f a
     -- Parser f <|> Parser g = Parser $ \x -> case f x of
@@ -72,9 +75,6 @@ instance Alternative Parser where
             -- foo s = f s >>= \(x,xs) -> first (x :) <$> foo xs
                 -- | Above solutions will make whole thing fail if one fails and all
                 -- others succeed. Not good enough.
-    --some (Parser f) = Parser f <|> many (Parser f)
-        -- | Above solution does not work - many (Parser f) has type Parser [a], 
-        -- not type Parser a. But I feel I am onto something.
 
     -- | many :: f a -> f [a]
     -- | Can return an empty list if all computations fail - otherwise, return
@@ -110,6 +110,7 @@ instance Monad Parser where
     -- | g :: a -> Parser b
     -- Parser f >>= g = Parser $ \x -> either Left (\(y,ys) -> parse ys (g y)) (f x)
     -- Parser f >>= g = Parser $ \x -> f x >>= (\(y,ys) -> parse ys (g y))
+    -- | g y :: Parser b ~ (String -> Either Err (b, String))
     -- | h :: (a, String) -> Either Err (b, String)
     -- | (>=>) :: (a -> m b) -> (b -> m c) -> a -> m c
     Parser f >>= g = Parser $ f >=> h
@@ -134,19 +135,52 @@ parseIf p = Parser foo
                    | otherwise = Left $ "Parse failed with character: " ++ show x
 
 -- | Parse a character if it is a member of a given list
-oneOf :: [Char] -> Parser Char
+oneOf :: String -> Parser Char
 oneOf cs = parseIf (`elem` cs)
 
--- | Parse whitespace
-whitespace :: Parser Char
-whitespace = parseIf isSpace
+-- | Parse a character if it is not whitespace
+ifChar :: Parser Char
+ifChar = parseIf (not . isSpace)
 
--- | Parse and remove whitespace
+-- | Parse a character if it is a digit
+ifDigit :: Parser Char
+ifDigit = parseIf isDigit
+
+-- | Fetch all whitespace characters from the start of a string
+whitespace :: Parser String
+whitespace = many $ parseIf isSpace
+
+-- | Fetch a word from a string, assuming the first element of the string is a
+-- word character. Will fail if the first element of the string is not a word
+-- character.
+wordChars :: Parser String
+wordChars = some ifChar
+
+-- | Fetch the first non-whitespace character from a string
+char :: Parser Char
+char = whitespace *> ifChar
+
+-- | Fetch the first non-whitespace word from a string
+word :: Parser String
+word = whitespace *> wordChars
+
+-- | Fetch the first non-whitespace word from a string, and let the resulting
+-- string also be trimmed of preceding whitespace.
 trim :: Parser String
-trim = undefined
+trim = word <* whitespace
+
+-- | Parse a string between two other parsers
+between :: Parser a -> Parser b -> Parser c -> Parser b
+between open x close = open *> x <* close
+
+-- | Fetch the first number from a string (will fail if the first word is not a
+-- number, where a word is a series of characters between whitespace).
+number :: Parser String
+number = whitespace *> some ifDigit
+--number = between whitespace (some ifDigit) whitespace
+    -- | This has trimming behaviour - not exactly what we want.
 
 --------------------------------------------------------------------------------
-
 
 -- | Program :: Zipper (LineNo, Instruction)
 parseFile :: FileContents -> Either Err Program
